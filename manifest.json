@@ -5,6 +5,5 @@
   "minAppVersion": "1.4.0",
   "description": "Local speech-to-text via whisper.cpp (囁き — whisper)",
   "author": "CJ",
-  "authorUrl": "",
   "isDesktopOnly": true
 }

@@ -1,17 +1,14 @@
 import esbuild from 'esbuild';
-import { builtinModules } from 'module';
-import process from 'process';
+import { builtinModules } from 'node:module';
+import process from 'node:process';
 
 const prod = process.argv[2] === 'production';
 
-const context = await esbuild.context({
+const ctx = await esbuild.context({
   entryPoints: ['src/main.ts'],
   bundle: true,
   format: 'cjs',
   target: 'es2020',
-  logLevel: 'info',
-  sourcemap: prod ? false : 'inline',
-  treeShaking: true,
   outfile: 'main.js',
   external: [
     'obsidian',
@@ -29,11 +26,14 @@ const context = await esbuild.context({
     '@lezer/lr',
     ...builtinModules,
   ],
+  sourcemap: prod ? false : 'inline',
+  minify: prod,
+  logLevel: 'info',
 });
 
 if (prod) {
-  await context.rebuild();
+  await ctx.rebuild();
   process.exit(0);
 } else {
-  await context.watch();
+  await ctx.watch();
 }

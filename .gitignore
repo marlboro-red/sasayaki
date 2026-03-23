@@ -1,9 +1,12 @@
+
 # Dolt database files (added by bd init)
 .dolt/
 *.db
+plan.md
 
-# Plugin build output
+# Build artifacts
 node_modules/
-main.js
 *.js.map
-.DS_Store
+
+# Beads worktree redirect
+.beads/redirect

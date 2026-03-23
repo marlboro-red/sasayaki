@@ -1,105 +1,100 @@
 import { Notice } from 'obsidian';
-
-interface Logger {
-	debug(msg: string): void;
-	info(msg: string): void;
-	error(msg: string, err?: unknown): void;
-}
+import { Logger } from './Logger';
 
 export class RecordingManager {
-	private recorder: MediaRecorder | null = null;
-	private chunks: Blob[] = [];
-	private stream: MediaStream | null = null;
-	private logger: Logger;
+  private recorder: MediaRecorder | null = null;
+  private chunks: Blob[] = [];
+  private stream: MediaStream | null = null;
 
-	constructor(logger: Logger) {
-		this.logger = logger;
-	}
+  constructor(private logger: Logger) {}
 
-	async startRecording(): Promise<void> {
-		try {
-			this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-		} catch (err) {
-			this.handleMicError(err);
-			throw err;
-		}
+  async startRecording(): Promise<void> {
+    if (this.recorder) {
+      throw new Error('Already recording');
+    }
 
-		this.chunks = [];
-		this.recorder = new MediaRecorder(this.stream, { mimeType: 'audio/webm;codecs=opus' });
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err: unknown) {
+      const error = err as DOMException;
+      if (error.name === 'NotAllowedError') {
+        new Notice(
+          'Microphone access denied. Grant permission in System Settings > Privacy & Security > Microphone.'
+        );
+      } else if (error.name === 'NotFoundError') {
+        new Notice('No microphone found.');
+      } else if (error.name === 'NotReadableError') {
+        new Notice('Microphone is in use by another app.');
+      } else {
+        new Notice(`Microphone error: ${error.message}`);
+      }
+      throw error;
+    }
 
-		this.recorder.ondataavailable = (event: BlobEvent) => {
-			if (event.data.size > 0) {
-				this.chunks.push(event.data);
-			}
-		};
+    this.stream = stream;
+    this.chunks = [];
+    this.recorder = new MediaRecorder(stream, {
+      mimeType: 'audio/webm;codecs=opus',
+    });
 
-		this.recorder.start();
-		this.logger.info('Recording started');
-	}
+    this.recorder.ondataavailable = (e: BlobEvent) => {
+      if (e.data.size > 0) {
+        this.chunks.push(e.data);
+      }
+    };
 
-	stopRecording(): Promise<Blob> {
-		return new Promise<Blob>((resolve, reject) => {
-			if (!this.recorder || this.recorder.state === 'inactive') {
-				reject(new Error('No active recording'));
-				return;
-			}
+    this.recorder.start(100);
+    this.logger.debug('Recording started');
+  }
 
-			const chunks = this.chunks;
+  async stopRecording(): Promise<Blob> {
+    if (!this.recorder) {
+      throw new Error('Not recording');
+    }
 
-			this.recorder.onstop = () => {
-				const blob = new Blob(chunks, { type: 'audio/webm' });
-				this.cleanup();
-				this.logger.info(`Recording stopped — blob size: ${blob.size} bytes`);
-				resolve(blob);
-			};
+    return new Promise<Blob>((resolve, reject) => {
+      if (!this.recorder) {
+        reject(new Error('Recorder gone'));
+        return;
+      }
 
-			this.recorder.stop();
-		});
-	}
+      this.recorder.onstop = () => {
+        const blob = new Blob(this.chunks, { type: 'audio/webm' });
+        this.chunks = [];
+        this.logger.debug(`Recording stopped, blob size: ${blob.size} bytes`);
+        this._cleanup();
+        resolve(blob);
+      };
 
-	isRecording(): boolean {
-		return this.recorder !== null && this.recorder.state !== 'inactive';
-	}
+      this.recorder.onerror = (e: Event) => {
+        this._cleanup();
+        reject(new Error(`Recorder error: ${(e as ErrorEvent).message}`));
+      };
 
-	cancelRecording(): void {
-		if (!this.recorder || this.recorder.state === 'inactive') {
-			// No active recorder; release stream if one was opened
-			this.cleanup();
-			return;
-		}
+      this.recorder.stop();
+    });
+  }
 
-		this.recorder.onstop = () => {
-			this.cleanup();
-			this.logger.info('Recording cancelled — blob discarded');
-		};
+  isRecording(): boolean {
+    return this.recorder !== null && this.recorder.state === 'recording';
+  }
 
-		this.recorder.stop();
-	}
+  cancelRecording(): void {
+    if (this.recorder) {
+      this.recorder.onstop = null;
+      this.recorder.stop();
+    }
+    this.chunks = [];
+    this._cleanup();
+    this.logger.debug('Recording cancelled');
+  }
 
-	// -------------------------------------------------------------------------
-	// Private helpers
-	// -------------------------------------------------------------------------
-
-	private cleanup(): void {
-		if (this.stream) {
-			this.stream.getTracks().forEach(t => t.stop());
-			this.stream = null;
-		}
-		this.recorder = null;
-		this.chunks = [];
-	}
-
-	private handleMicError(err: unknown): void {
-		if (!(err instanceof DOMException)) return;
-
-		if (err.name === 'NotAllowedError') {
-			new Notice('Microphone access denied. Grant permission in System Settings > Privacy & Security > Microphone.');
-		} else if (err.name === 'NotFoundError') {
-			new Notice('No microphone found.');
-		} else if (err.name === 'NotReadableError') {
-			new Notice('Microphone is in use by another app.');
-		}
-
-		this.logger.error(`Microphone error: ${err.name}`, err);
-	}
+  private _cleanup(): void {
+    if (this.stream) {
+      this.stream.getTracks().forEach((t) => t.stop());
+      this.stream = null;
+    }
+    this.recorder = null;
+  }
 }
