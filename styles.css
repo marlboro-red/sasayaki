@@ -14,41 +14,32 @@
 }
 
 @keyframes sasayaki-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.4;
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 
 /* ---------------------------------------------------------
    Status bar item colours
-   Three states: ready (green), recording (red), offline (grey)
+   Three core states: ready (green), recording (red), offline (grey)
+   Plus: transcribing (accent), starting (yellow)
    --------------------------------------------------------- */
 
-/* Server is up and idle — use Obsidian's success colour */
-.sasayaki-status--ready {
-  color: var(--color-green);
+.status-bar-item.sasayaki-status-ready {
+  color: var(--text-success);
 }
 
-/* Recording in progress — use Obsidian's error/danger colour */
-.sasayaki-status--recording {
+.status-bar-item.sasayaki-status-recording {
   color: var(--text-error);
 }
 
-/* Transcribing — use accent colour to indicate processing */
-.sasayaki-status--transcribing {
+.status-bar-item.sasayaki-status-transcribing {
   color: var(--text-accent);
 }
 
-/* Server offline or unavailable — muted text */
-.sasayaki-status--offline {
+.status-bar-item.sasayaki-status-offline {
   color: var(--text-muted);
 }
 
-/* Server is starting up — use Obsidian's warning colour */
-.sasayaki-status--starting {
-  color: var(--color-yellow);
+.status-bar-item.sasayaki-status-starting {
+  color: var(--text-warning);
 }
