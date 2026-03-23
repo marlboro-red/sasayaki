@@ -6,6 +6,7 @@ plan.md
 
 # Build artifacts
 node_modules/
+main.js
 *.js.map
 
 # Beads worktree redirect

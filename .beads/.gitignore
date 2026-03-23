@@ -33,6 +33,12 @@ dolt-server.lock
 dolt-server.port
 dolt-server.activity
 dolt-monitor.pid
+dolt-monitor.pid.lock
+
+# Logs and session data
+logs/
+obelisk_sessions.jsonl
+interactions.jsonl
 
 # Backup data (auto-exported JSONL, local-only)
 backup/
