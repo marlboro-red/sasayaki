@@ -17,14 +17,14 @@ export class RecordingManager {
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (err: unknown) {
-      const error = err as DOMException;
-      if (error.name === 'NotAllowedError') {
+      const error = err instanceof DOMException ? err : new Error(String(err));
+      if (error instanceof DOMException && error.name === 'NotAllowedError') {
         new Notice(
           'Microphone access denied. Grant permission in System Settings > Privacy & Security > Microphone.'
         );
-      } else if (error.name === 'NotFoundError') {
+      } else if (error instanceof DOMException && error.name === 'NotFoundError') {
         new Notice('No microphone found.');
-      } else if (error.name === 'NotReadableError') {
+      } else if (error instanceof DOMException && error.name === 'NotReadableError') {
         new Notice('Microphone is in use by another app.');
       } else {
         new Notice(`Microphone error: ${error.message}`);
@@ -74,7 +74,8 @@ export class RecordingManager {
 
       this.recorder.onerror = (e: Event) => {
         this._cleanup();
-        reject(new Error(`Recorder error: ${(e as ErrorEvent).message}`));
+        const message = e instanceof ErrorEvent ? e.message : 'unknown error';
+        reject(new Error(`Recorder error: ${message}`));
       };
 
       this.recorder.stop();
@@ -88,6 +89,7 @@ export class RecordingManager {
   cancelRecording(): void {
     if (this.recorder) {
       this.recorder.onstop = null;
+      this.recorder.onerror = null;
       this.recorder.stop();
     }
     this.chunks = [];

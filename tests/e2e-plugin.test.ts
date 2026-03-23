@@ -776,6 +776,23 @@ describe('10. Unload during active recording cleans up', () => {
     expect(mgr.isRecording()).toBe(false);
   });
 
+  it('cancelRecording nullifies both onstop and onerror handlers', async () => {
+    const logger = new Logger(false);
+    const mgr = new RecordingManager(logger);
+    const { mockRecorder } = setupRecordingMocks();
+
+    await mgr.startRecording();
+
+    // Simulate stopRecording setting handlers (as it does internally)
+    mockRecorder.onstop = () => {};
+    mockRecorder.onerror = () => {};
+
+    mgr.cancelRecording();
+
+    expect(mockRecorder.onstop).toBeNull();
+    expect(mockRecorder.onerror).toBeNull();
+  });
+
   it('cancelRecording is safe to call when not recording', () => {
     const logger = new Logger(false);
     const mgr = new RecordingManager(logger);
