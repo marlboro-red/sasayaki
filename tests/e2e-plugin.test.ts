@@ -560,7 +560,7 @@ describe('8. Error handling', () => {
 
       await expect(
         mgr.start('/nonexistent/binary', '/model.bin', '127.0.0.1', 19999)
-      ).rejects.toThrow('Server did not become ready within 15 seconds');
+      ).rejects.toThrow('Server did not become ready within 60 seconds');
 
       expect((mockProc as any).kill).toHaveBeenCalledWith('SIGTERM');
     });
