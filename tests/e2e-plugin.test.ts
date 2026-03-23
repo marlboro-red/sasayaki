@@ -413,6 +413,44 @@ describe('3. Recording via ribbon icon and hotkey', () => {
     expect(mgr.isRecording()).toBe(false);
   });
 
+  it('concurrent startRecording calls are rejected (race condition guard)', async () => {
+    const logger = new Logger(false);
+    const mgr = new RecordingManager(logger);
+
+    const mockTrack = { stop: vi.fn() };
+    const mockStream = { getTracks: () => [mockTrack] } as unknown as MediaStream;
+    const mockRecorder = {
+      state: 'inactive' as string,
+      start: vi.fn(function (this: any) { this.state = 'recording'; }),
+      stop: vi.fn(function (this: any) {
+        this.state = 'inactive';
+        if (this.onstop) this.onstop();
+      }),
+      ondataavailable: null as any,
+      onstop: null as any,
+      onerror: null as any,
+    };
+
+    // getUserMedia resolves after a microtask delay, simulating the async gap
+    let resolveMedia!: (stream: MediaStream) => void;
+    mockNavigator(vi.fn().mockImplementation(() =>
+      new Promise<MediaStream>((r) => { resolveMedia = r; })
+    ));
+    mockMediaRecorder(mockRecorder);
+
+    // Fire two concurrent startRecording calls
+    const first = mgr.startRecording();
+    const second = mgr.startRecording();
+
+    // Second call should reject immediately with "Already recording"
+    await expect(second).rejects.toThrow('Already recording');
+
+    // Let the first call complete
+    resolveMedia(mockStream);
+    await first;
+    expect(mgr.isRecording()).toBe(true);
+  });
+
   it('startRecording throws if already recording', async () => {
     const logger = new Logger(false);
     const mgr = new RecordingManager(logger);

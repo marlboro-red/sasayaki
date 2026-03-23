@@ -5,18 +5,21 @@ export class RecordingManager {
   private recorder: MediaRecorder | null = null;
   private chunks: Blob[] = [];
   private stream: MediaStream | null = null;
+  private starting = false;
 
   constructor(private logger: Logger) {}
 
   async startRecording(): Promise<void> {
-    if (this.recorder) {
+    if (this.recorder || this.starting) {
       throw new Error('Already recording');
     }
 
+    this.starting = true;
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (err: unknown) {
+      this.starting = false;
       const error = err instanceof DOMException ? err : new Error(String(err));
       if (error instanceof DOMException && error.name === 'NotAllowedError') {
         new Notice(
@@ -50,6 +53,7 @@ export class RecordingManager {
     };
 
     this.recorder.start(100);
+    this.starting = false;
     this.logger.debug('Recording started');
   }
 
@@ -103,5 +107,6 @@ export class RecordingManager {
       this.stream = null;
     }
     this.recorder = null;
+    this.starting = false;
   }
 }
