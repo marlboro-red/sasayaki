@@ -42,6 +42,14 @@ export class ServerManager {
       });
     }
 
+    this.process.on('error', (err) => {
+      this.logger.error(`whisper-server spawn error: ${err.message}`);
+      this.process = null;
+      if (!this._stoppedIntentionally) {
+        this.onUnexpectedExit?.(null);
+      }
+    });
+
     this.process.on('exit', (code) => {
       if (!this._stoppedIntentionally) {
         this.logger.error(`whisper-server exited unexpectedly (code ${code})`);
@@ -51,6 +59,14 @@ export class ServerManager {
     });
 
     this.logger.info(`whisper-server spawned (pid ${this.process.pid})`);
+
+    const ready = await this.waitForReady(host, port);
+    if (!ready) {
+      this._stoppedIntentionally = true;
+      this.process?.kill('SIGTERM');
+      this.process = null;
+      throw new Error('Server did not become ready within 15 seconds');
+    }
   }
 
   async stop(): Promise<void> {

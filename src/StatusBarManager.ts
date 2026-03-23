@@ -30,6 +30,11 @@ export class StatusBarManager {
 		return this.state;
 	}
 
+	setVisible(show: boolean): void {
+		if (!this.el) return;
+		this.el.style.display = show ? '' : 'none';
+	}
+
 	private render(): void {
 		if (!this.el) return;
 		this.el.setText(STATE_LABELS[this.state]);
