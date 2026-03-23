@@ -146,6 +146,45 @@ All four commands should return valid JSON responses with transcribed text.
 
 ---
 
+## Verified API Responses
+
+All 5 acceptance criteria verified against whisper-server built from whisper.cpp (tiny model, Metal backend, macOS Apple Silicon):
+
+### 1. Health check — ready state
+```
+GET /health → 200 {"status":"ok"}
+```
+
+### 2. Health check — loading state
+```
+GET /health → 503 {"status":"loading model"}   (during model initialization)
+```
+
+### 3. WAV transcription
+```
+POST /inference (file=jfk.wav, response_format=json)
+→ 200 {"text":" And so my fellow Americans ask not what your country can do\n for you, ask what you can do for your country.\n"}
+```
+
+### 4. WebM transcription (--convert + ffmpeg)
+```
+POST /inference (file=jfk.webm, response_format=json)
+→ 200 {"text":" And so my fellow Americans ask not what your country can do\n for you, ask what you can do for your country.\n"}
+```
+Identical transcription to WAV — ffmpeg transcoding is transparent.
+
+### 5. language=auto
+```
+POST /inference (file=jfk.wav, response_format=json, language=auto)
+→ 200 {"text":" And so my fellow Americans ask not what your country can do\n for you, ask what you can do for your country.\n"}
+```
+English auto-detected correctly.
+
+### Response shape
+`response_format=json` always returns `{"text": "..."}`. Note the leading space — callers must `.trim()` the text field.
+
+---
+
 ## Troubleshooting
 
 ### `ffmpeg: command not found`
