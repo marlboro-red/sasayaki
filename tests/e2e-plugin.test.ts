@@ -374,6 +374,10 @@ describe('3. Recording via ribbon icon and hotkey', () => {
       start: vi.fn(function (this: any) { this.state = 'recording'; }),
       stop: vi.fn(function (this: any) {
         this.state = 'inactive';
+        // Simulate the browser firing ondataavailable before onstop
+        if (this.ondataavailable) {
+          this.ondataavailable({ data: new Blob(['fake-audio-data'], { type: 'audio/webm' }) });
+        }
         if (this.onstop) this.onstop();
       }),
       ondataavailable: null as any,
@@ -389,6 +393,7 @@ describe('3. Recording via ribbon icon and hotkey', () => {
 
     const blob = await mgr.stopRecording();
     expect(blob).toBeInstanceOf(Blob);
+    expect(blob.size).toBeGreaterThan(0);
     expect(mgr.isRecording()).toBe(false);
     expect(mockTrack.stop).toHaveBeenCalled();
   });
@@ -421,6 +426,9 @@ describe('3. Recording via ribbon icon and hotkey', () => {
       start: vi.fn(function (this: any) { this.state = 'recording'; }),
       stop: vi.fn(function (this: any) {
         this.state = 'inactive';
+        if (this.ondataavailable) {
+          this.ondataavailable({ data: new Blob(['fake-audio-data'], { type: 'audio/webm' }) });
+        }
         if (this.onstop) this.onstop();
       }),
       ondataavailable: null as any,
@@ -968,7 +976,13 @@ describe('10. Unload during active recording cleans up', () => {
     const mockRecorder = {
       state: 'inactive' as string,
       start: vi.fn(function (this: any) { this.state = 'recording'; }),
-      stop: vi.fn(function (this: any) { this.state = 'inactive'; }),
+      stop: vi.fn(function (this: any) {
+        this.state = 'inactive';
+        if (this.ondataavailable) {
+          this.ondataavailable({ data: new Blob(['fake-audio-data'], { type: 'audio/webm' }) });
+        }
+        if (this.onstop) this.onstop();
+      }),
       ondataavailable: null as any,
       onstop: null as any,
       onerror: null as any,
