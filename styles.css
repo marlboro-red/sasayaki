@@ -1,21 +1,54 @@
+/* =========================================================
+   Sasayaki — Recording animation & status bar colours
+   Compatible with both Obsidian light and dark themes via
+   CSS custom properties from the Obsidian theme system.
+   ========================================================= */
+
+/* ---------------------------------------------------------
+   Ribbon icon — pulsing red while recording
+   Applied by main.ts: ribbonEl.addClass('sasayaki-recording')
+   --------------------------------------------------------- */
 .sasayaki-recording {
   animation: sasayaki-pulse 1s ease-in-out infinite;
   color: var(--text-error);
 }
 
 @keyframes sasayaki-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
 }
 
-.status-bar-item.sasayaki-status-ready {
-  color: var(--text-success);
+/* ---------------------------------------------------------
+   Status bar item colours
+   Three states: ready (green), recording (red), offline (grey)
+   --------------------------------------------------------- */
+
+/* Server is up and idle — use Obsidian's success colour */
+.sasayaki-status--ready {
+  color: var(--color-green);
 }
 
-.status-bar-item.sasayaki-status-recording {
+/* Recording in progress — use Obsidian's error/danger colour */
+.sasayaki-status--recording {
   color: var(--text-error);
 }
 
-.status-bar-item.sasayaki-status-offline {
+/* Transcribing — use accent colour to indicate processing */
+.sasayaki-status--transcribing {
+  color: var(--text-accent);
+}
+
+/* Server offline or unavailable — muted text */
+.sasayaki-status--offline {
   color: var(--text-muted);
+}
+
+/* Server is starting up — use Obsidian's warning colour */
+.sasayaki-status--starting {
+  color: var(--color-yellow);
 }
