@@ -21,6 +21,7 @@ export default class SasayakiPlugin extends Plugin {
   private ribbonIcon: HTMLElement | null = null;
   private autoRestartAttempts = 0;
   private readonly MAX_RESTART_ATTEMPTS = 3;
+  private restartTimeout: ReturnType<typeof setTimeout> | null = null;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -38,7 +39,10 @@ export default class SasayakiPlugin extends Plugin {
         this.autoRestartAttempts++;
         this.logger.info(`Auto-restarting server (attempt ${this.autoRestartAttempts}/${this.MAX_RESTART_ATTEMPTS})...`);
         new Notice('Whisper server crashed — attempting auto-restart...', 4000);
-        setTimeout(() => void this._startServer(), 2000);
+        this.restartTimeout = setTimeout(() => {
+          this.restartTimeout = null;
+          void this._startServer();
+        }, 2000);
       } else if (this.autoRestartAttempts >= this.MAX_RESTART_ATTEMPTS) {
         new Notice(
           `Whisper server crashed and could not be restarted after ${this.MAX_RESTART_ATTEMPTS} attempts.`,
@@ -83,6 +87,10 @@ export default class SasayakiPlugin extends Plugin {
   }
 
   async onunload(): Promise<void> {
+    if (this.restartTimeout !== null) {
+      clearTimeout(this.restartTimeout);
+      this.restartTimeout = null;
+    }
     if (this.recording.isRecording()) {
       this.recording.cancelRecording();
     }

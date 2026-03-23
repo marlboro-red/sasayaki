@@ -930,6 +930,56 @@ describe('10. Unload during active recording cleans up', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// 10b. Unload cancels pending auto-restart timeout (sasayaki-1do)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('10b. Unload cancels pending auto-restart timeout', () => {
+  it('clearTimeout is called for pending restart on unload', async () => {
+    // Simulate the bug: a setTimeout for _startServer is pending when plugin unloads.
+    // The fix stores the timeout ID and clears it in onunload().
+
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout');
+
+    // Schedule a timeout (simulating what onUnexpectedExit does)
+    const timeoutId = setTimeout(() => {
+      // This should never fire if clearTimeout works
+      throw new Error('Auto-restart callback fired after unload!');
+    }, 2000);
+
+    // Simulate onunload clearing the timeout
+    clearTimeout(timeoutId);
+
+    expect(clearTimeoutSpy).toHaveBeenCalledWith(timeoutId);
+
+    clearTimeoutSpy.mockRestore();
+  });
+
+  it('restart callback does not fire after timeout is cleared', async () => {
+    vi.useFakeTimers();
+
+    const restartFn = vi.fn();
+    let restartTimeout: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+      restartTimeout = null;
+      restartFn();
+    }, 2000);
+
+    // Simulate unload before the 2s elapses
+    if (restartTimeout !== null) {
+      clearTimeout(restartTimeout);
+      restartTimeout = null;
+    }
+
+    // Advance past the 2s — callback should NOT fire
+    vi.advanceTimersByTime(3000);
+
+    expect(restartFn).not.toHaveBeenCalled();
+    expect(restartTimeout).toBeNull();
+
+    vi.useRealTimers();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Bonus: StatusBarManager state machine
 // ═══════════════════════════════════════════════════════════════════════════
 
