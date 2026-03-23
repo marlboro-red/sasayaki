@@ -1,22 +1,23 @@
-import { Plugin, addIcon } from 'obsidian';
+import { Plugin } from 'obsidian';
 import { SasayakiSettings, DEFAULT_SETTINGS } from './types';
 
 export default class SasayakiPlugin extends Plugin {
   settings: SasayakiSettings;
   private ribbonIcon: HTMLElement | null = null;
+  private isRecording = false;
 
   async onload() {
     await this.loadSettings();
 
     this.ribbonIcon = this.addRibbonIcon('microphone', 'Sasayaki: Toggle recording', () => {
-      // Recording toggle will be implemented in Phase 8
+      this.toggleRecording();
     });
 
     this.addCommand({
       id: 'toggle-recording',
       name: 'Toggle recording',
       callback: () => {
-        // Recording toggle will be implemented in Phase 8
+        this.toggleRecording();
       },
     });
 
@@ -25,6 +26,17 @@ export default class SasayakiPlugin extends Plugin {
 
   onunload() {
     console.log('[Sasayaki] Plugin unloaded');
+  }
+
+  private toggleRecording() {
+    this.isRecording = !this.isRecording;
+    if (this.ribbonIcon) {
+      if (this.isRecording) {
+        this.ribbonIcon.addClass('sasayaki-recording');
+      } else {
+        this.ribbonIcon.removeClass('sasayaki-recording');
+      }
+    }
   }
 
   async loadSettings() {
