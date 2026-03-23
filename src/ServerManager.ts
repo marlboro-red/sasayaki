@@ -130,6 +130,11 @@ export class ServerManager {
     return this.process !== null || this.externallyManaged;
   }
 
+  /** True when the server was spawned by us (not externally managed). */
+  get isManagedProcess(): boolean {
+    return this.process !== null;
+  }
+
   async waitForReady(host: string, port: number, timeoutMs = 60_000): Promise<boolean> {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {

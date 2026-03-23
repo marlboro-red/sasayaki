@@ -980,6 +980,40 @@ describe('10b. Unload cancels pending auto-restart timeout', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Regression: sasayaki-itf — settings change orphans server process
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('ServerManager.isManagedProcess', () => {
+  it('is false when no server is running', () => {
+    const logger = new Logger(false);
+    const mgr = new ServerManager(logger);
+    expect(mgr.isManagedProcess).toBe(false);
+  });
+
+  it('is true when server was spawned by us', async () => {
+    const logger = new Logger(false);
+    const mgr = new ServerManager(logger);
+
+    const mockProc = createMockChildProcess();
+    mockSpawn.mockReturnValue(mockProc);
+    vi.spyOn(mgr, 'waitForReady').mockResolvedValue(true);
+
+    await mgr.start('/bin/ws', '/m.bin', '127.0.0.1', FAKE_PORT + 300);
+    expect(mgr.isManagedProcess).toBe(true);
+  });
+
+  it('is false when server is externally managed', async () => {
+    const logger = new Logger(false);
+    const mgr = new ServerManager(logger);
+
+    // fakeServer is running on FAKE_PORT, so start() will detect it as external
+    await mgr.start('/fake/binary', '/fake/model', '127.0.0.1', FAKE_PORT);
+    expect(mgr.isRunning()).toBe(true);
+    expect(mgr.isManagedProcess).toBe(false);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Bonus: StatusBarManager state machine
 // ═══════════════════════════════════════════════════════════════════════════
 
