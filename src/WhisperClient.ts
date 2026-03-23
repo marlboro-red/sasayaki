@@ -1,6 +1,9 @@
 import * as http from 'http';
 import { Logger } from './Logger';
 
+/** Maximum response size (1 MB) — transcription JSON should never be this large. */
+const MAX_RESPONSE_BYTES = 1 * 1024 * 1024;
+
 export class WhisperClient {
   constructor(
     private host: string,
@@ -34,7 +37,16 @@ export class WhisperClient {
         },
         (res) => {
           const chunks: Buffer[] = [];
-          res.on('data', (chunk: Buffer) => chunks.push(chunk));
+          let bytesReceived = 0;
+          res.on('data', (chunk: Buffer) => {
+            bytesReceived += chunk.length;
+            if (bytesReceived > MAX_RESPONSE_BYTES) {
+              res.destroy();
+              reject(new Error(`Whisper server response exceeded ${MAX_RESPONSE_BYTES} bytes`));
+              return;
+            }
+            chunks.push(chunk);
+          });
           res.on('end', () => {
             const raw = Buffer.concat(chunks).toString('utf8');
             this.logger.debug(`Transcription response (${res.statusCode}): ${raw}`);
@@ -80,7 +92,16 @@ export class WhisperClient {
         },
         (res) => {
           const chunks: Buffer[] = [];
-          res.on('data', (chunk: Buffer) => chunks.push(chunk));
+          let bytesReceived = 0;
+          res.on('data', (chunk: Buffer) => {
+            bytesReceived += chunk.length;
+            if (bytesReceived > MAX_RESPONSE_BYTES) {
+              res.destroy();
+              resolve(false);
+              return;
+            }
+            chunks.push(chunk);
+          });
           res.on('end', () => {
             const body = Buffer.concat(chunks).toString('utf8');
             resolve(res.statusCode === 200 && body.includes('"ok"'));
