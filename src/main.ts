@@ -1,4 +1,4 @@
-import { Plugin, addIcon } from 'obsidian';
+import { Plugin } from 'obsidian';
 import { SasayakiSettings, DEFAULT_SETTINGS } from './types';
 import { StatusBarManager } from './StatusBarManager';
 
@@ -6,6 +6,7 @@ export default class SasayakiPlugin extends Plugin {
   settings: SasayakiSettings;
   statusBar: StatusBarManager;
   private ribbonIcon: HTMLElement | null = null;
+  private isRecording = false;
 
   async onload() {
     await this.loadSettings();
@@ -13,14 +14,14 @@ export default class SasayakiPlugin extends Plugin {
     this.statusBar = new StatusBarManager(this, this.settings.showStatusBar);
 
     this.ribbonIcon = this.addRibbonIcon('microphone', 'Sasayaki: Toggle recording', () => {
-      // Recording toggle will be implemented in Phase 8
+      this.toggleRecording();
     });
 
     this.addCommand({
       id: 'toggle-recording',
       name: 'Toggle recording',
       callback: () => {
-        // Recording toggle will be implemented in Phase 8
+        this.toggleRecording();
       },
     });
 
@@ -29,6 +30,17 @@ export default class SasayakiPlugin extends Plugin {
 
   onunload() {
     console.log('[Sasayaki] Plugin unloaded');
+  }
+
+  private toggleRecording() {
+    this.isRecording = !this.isRecording;
+    if (this.ribbonIcon) {
+      if (this.isRecording) {
+        this.ribbonIcon.addClass('sasayaki-recording');
+      } else {
+        this.ribbonIcon.removeClass('sasayaki-recording');
+      }
+    }
   }
 
   async loadSettings() {
