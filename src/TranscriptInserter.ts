@@ -18,7 +18,8 @@ export class TranscriptInserter {
         const line = editor.getLine(cursor.line);
         const endPos = { line: cursor.line, ch: line.length };
         editor.replaceRange('\n' + text, endPos);
-        editor.setCursor({ line: cursor.line + 1, ch: text.length });
+        const textLines = text.split('\n');
+        editor.setCursor({ line: cursor.line + textLines.length, ch: textLines[textLines.length - 1].length });
         break;
       }
       case 'blockquote': {
@@ -27,7 +28,9 @@ export class TranscriptInserter {
         const endPos = { line: cursor.line, ch: line.length };
         const block = `\n> [!quote] Transcription\n> ${text}`;
         editor.replaceRange(block, endPos);
-        editor.setCursor({ line: cursor.line + 2, ch: 2 + text.length });
+        const textLines = text.split('\n');
+        const lastLineLen = textLines.length === 1 ? 2 + textLines[0].length : textLines[textLines.length - 1].length;
+        editor.setCursor({ line: cursor.line + 1 + textLines.length, ch: lastLineLen });
         break;
       }
     }
