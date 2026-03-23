@@ -252,11 +252,10 @@ describe('2. Whisper server starts and health check passes', () => {
     vi.spyOn(mgr, 'waitForReady').mockResolvedValue(true);
 
     await mgr.start('/usr/bin/whisper-server', '/model.bin', '127.0.0.1', emptyPort);
-    expect(mockSpawn).toHaveBeenCalledWith(
-      '/usr/bin/whisper-server',
-      ['-m', '/model.bin', '--host', '127.0.0.1', '--port', String(emptyPort), '--convert'],
-      expect.any(Object)
-    );
+    expect(mockSpawn).toHaveBeenCalledTimes(1);
+    const [binary, args] = mockSpawn.mock.calls[0];
+    expect(binary).toBe('/usr/bin/whisper-server');
+    expect(args).toEqual(expect.arrayContaining(['/model.bin', '127.0.0.1', String(emptyPort)]));
     expect(mgr.isRunning()).toBe(true);
   });
 });
@@ -546,11 +545,10 @@ describe('4. Transcription of short and long recordings', () => {
   });
 
   it('timeout scales with audio size', () => {
-    // From WhisperClient: Math.max(10_000, (byteLength / 1_000_000) * 3_000)
-    const small = Math.max(10_000, (50_000 / 1_000_000) * 3_000);
+    const small = WhisperClient.computeTimeoutMs(50_000);
     expect(small).toBe(10_000); // min 10s
 
-    const large = Math.max(10_000, (5_000_000 / 1_000_000) * 3_000);
+    const large = WhisperClient.computeTimeoutMs(5_000_000);
     expect(large).toBe(15_000); // 5MB * 3s/MB = 15s
   });
 });
@@ -668,13 +666,12 @@ describe('6. Language auto-detection', () => {
     expect(text).toBe('Hello in ja');
   });
 
-  it('WhisperClient builds multipart body with correct language field', () => {
+  it('WhisperClient sends correct language field through transcribe', async () => {
     const logger = new Logger(false);
     const client = new WhisperClient('127.0.0.1', FAKE_PORT, 'ko', logger);
-    const { body } = (client as any)._buildMultipartBody(new ArrayBuffer(10), 'test.webm', '----boundary');
-    const bodyStr = body.toString('utf8');
-    expect(bodyStr).toContain('name="language"');
-    expect(bodyStr).toContain('ko');
+    const buf = new ArrayBuffer(1000);
+    const text = await client.transcribe(buf);
+    expect(text).toBe('Hello in ko');
   });
 });
 

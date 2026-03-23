@@ -12,6 +12,11 @@ export class WhisperClient {
     private logger: Logger
   ) {}
 
+  /** Compute request timeout in ms — scales with audio size (min 10s, ~3s per MB). */
+  static computeTimeoutMs(byteLength: number): number {
+    return Math.max(10_000, (byteLength / 1_000_000) * 3_000);
+  }
+
   async transcribe(audioBuffer: ArrayBuffer, filename = 'audio.webm'): Promise<string> {
     const boundary = `----FormBoundary${Math.random().toString(16).slice(2)}`;
     const { body, contentType } = this._buildMultipartBody(
@@ -20,8 +25,7 @@ export class WhisperClient {
       boundary
     );
 
-    // Scale timeout with audio size: min 10s, ~3s per MB
-    const timeoutMs = Math.max(10_000, (audioBuffer.byteLength / 1_000_000) * 3_000);
+    const timeoutMs = WhisperClient.computeTimeoutMs(audioBuffer.byteLength);
 
     return new Promise<string>((resolve, reject) => {
       const req = http.request(
