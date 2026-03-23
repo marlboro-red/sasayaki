@@ -16,7 +16,7 @@ export default class SasayakiPlugin extends Plugin {
 
   private recording!: RecordingManager;
   private server!: ServerManager;
-  private whisperClient!: WhisperClient;
+  whisperClient!: WhisperClient;
   private inserter!: TranscriptInserter;
   private ribbonIcon: HTMLElement | null = null;
   private autoRestartAttempts = 0;
@@ -233,7 +233,7 @@ export default class SasayakiPlugin extends Plugin {
     this.autoRestartAttempts = 0;
 
     try {
-      // start() handles: probe health, spawn, waitForReady, and shows notices
+      // start() handles: probe health, spawn, waitForReady
       await this.server.start(serverBinaryPath, modelPath, host, port);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -242,10 +242,8 @@ export default class SasayakiPlugin extends Plugin {
       return false;
     }
 
-    // Verify health after start() completes
-    const ready = await this.whisperClient.healthCheck();
-    this.statusBar.setState(ready ? 'idle' : 'offline');
-    return ready;
+    this.statusBar.setState('idle');
+    return true;
   }
 
   private _rebuildWhisperClient(): void {
@@ -267,6 +265,10 @@ export default class SasayakiPlugin extends Plugin {
   }
 
   // ── Settings ────────────────────────────────────────────────────────────────
+
+  updateStatusBar(): void {
+    this.statusBar.setVisible(this.settings.showStatusBar);
+  }
 
   async loadSettings(): Promise<void> {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
