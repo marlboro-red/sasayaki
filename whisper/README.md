@@ -47,6 +47,11 @@ This downloads `ggml-small.bin` into `whisper.cpp/models/`. The `small` model gi
 
 Available models (largest to smallest): `large-v3`, `medium`, `small`, `base`, `tiny`
 
+> **Note:** For the large model, use `large-v3` explicitly — there is no `ggml-large.bin` on HuggingFace:
+> ```bash
+> ./models/download-ggml-model.sh large-v3   # produces ggml-large-v3.bin (~2.9 GB)
+> ```
+
 ---
 
 ## Start the Server

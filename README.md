@@ -6,6 +6,26 @@ A local, private speech-to-text plugin for [Obsidian](https://obsidian.md). Sasa
 
 ---
 
+## Quick Start
+
+If you already have whisper.cpp built and an Obsidian vault ready:
+
+```bash
+# Clone and build the plugin
+git clone <this-repo>
+cd sasayaki
+npm install && npm run build
+
+# Set up your vault (creates symlink, enables plugin)
+./scripts/setup-vault.sh /path/to/your/vault
+```
+
+Then in Obsidian: **Settings → Sasayaki** → set the **Server binary path** and **Model path** → click **Test connection**.
+
+If you need to build whisper.cpp first, see [Prerequisites](#prerequisites) below.
+
+---
+
 ## Prerequisites
 
 You need three things before the plugin will work:
@@ -31,7 +51,7 @@ cd whisper.cpp
 cmake -B build
 cmake --build build --config Release
 
-# Download the small model (good accuracy/speed balance)
+# Download a model (see Model Recommendations below)
 ./models/download-ggml-model.sh small
 ```
 
@@ -41,6 +61,11 @@ This produces:
 
 Note the absolute paths to both — you'll enter them in the plugin settings.
 
+> **Note on large models:** The download script uses the name you provide directly. For the large model, use `large-v3` (not `large` — there is no `ggml-large.bin` on HuggingFace):
+> ```bash
+> ./models/download-ggml-model.sh large-v3
+> ```
+
 ### 3. Obsidian (desktop)
 
 The plugin requires the Obsidian desktop app (not mobile). It should already be installed.
@@ -49,16 +74,32 @@ The plugin requires the Obsidian desktop app (not mobile). It should already be 
 
 ## Installation
 
-### Option A — Developer symlink (recommended for self-builds)
+### Option A — Setup script (recommended)
+
+The setup script symlinks the plugin into your vault and enables it in one step:
 
 ```bash
 # From the sasayaki repo root:
+npm install && npm run build
+./scripts/setup-vault.sh /path/to/your/vault
+```
+
+The script will:
+- Create the `.obsidian/plugins` directory if needed
+- Build the plugin if `main.js` is missing
+- Symlink the plugin into your vault
+- Enable sasayaki in `community-plugins.json`
+- Check for available whisper models
+
+### Option B — Manual symlink
+
+```bash
+# From the sasayaki repo root:
+npm install && npm run build
 ln -s "$(pwd)" "/path/to/your/vault/.obsidian/plugins/sasayaki"
 ```
 
-Replace `/path/to/your/vault` with the actual path to your Obsidian vault.
-
-### Option B — Manual copy
+### Option C — Manual copy
 
 Copy the following files into `<vault>/.obsidian/plugins/sasayaki/`:
 - `main.js`
@@ -73,7 +114,9 @@ Then in Obsidian: **Settings → Community Plugins → Installed Plugins** → e
 
 1. In Obsidian, go to **Settings → Sasayaki**
 2. Set **Server binary path** — the absolute path to your `whisper-server` binary
+   (e.g. `/Users/you/whisper.cpp/build/bin/whisper-server`)
 3. Set **Model path** — the absolute path to your `.bin` model file
+   (e.g. `/Users/you/whisper.cpp/models/ggml-small.bin`)
 4. Click **Test connection** to confirm the server is reachable (or let it auto-start)
 
 ---
@@ -134,7 +177,8 @@ The status bar item (bottom of the window) shows:
 
 1. Check that **Server binary path** in settings points to the actual `whisper-server` binary
 2. Check that **Model path** points to the `.bin` file
-3. Try starting the server manually to see error output:
+3. Larger models (medium, large) take longer to load. The plugin waits up to 60 seconds for the server to become ready. If your model takes longer, try starting the server manually before opening Obsidian.
+4. Try starting the server manually to see error output:
    ```bash
    /path/to/whisper-server \
      -m /path/to/ggml-small.bin \
@@ -142,7 +186,7 @@ The status bar item (bottom of the window) shows:
      --port 8787 \
      --convert
    ```
-4. Verify the health endpoint responds: `curl http://127.0.0.1:8787/health`
+5. Verify the health endpoint responds: `curl http://127.0.0.1:8787/health`
 
 ### Port conflict
 
@@ -191,35 +235,75 @@ Look for lines prefixed with `[Sasayaki]` and `[Sasayaki:debug]`.
 
 ---
 
-## Architecture
-
-```
-Obsidian (Electron renderer)
-  └── SasayakiPlugin
-        ├── ServerManager     — spawns/stops whisper-server child process
-        ├── RecordingManager  — MediaRecorder, mic access, Blob assembly
-        ├── WhisperClient     — Node http → whisper-server (no CORS)
-        ├── TranscriptInserter — editor cursor/selection manipulation
-        └── SettingsTab       — Obsidian settings UI
-```
-
-Audio never leaves the machine. The whisper-server child process is killed when the plugin is disabled or Obsidian quits.
-
----
-
 ## Model Recommendations
 
-| Model | Size | Speed (Apple M-series) | Accuracy |
-|-------|------|------------------------|----------|
-| `tiny` | ~75 MB | Very fast (~0.3s) | Basic |
-| `small` | ~466 MB | Fast (~0.5–1.5s) | Good |
-| `medium` | ~1.5 GB | Moderate (~2–4s) | Better |
-| `large` | ~3 GB | Slow (~5–10s) | Best |
+| Model | Download name | File | Size | Speed (Apple M-series) | Accuracy |
+|-------|---------------|------|------|------------------------|----------|
+| Tiny | `tiny` | `ggml-tiny.bin` | ~75 MB | Very fast (~0.3s) | Basic |
+| Small | `small` | `ggml-small.bin` | ~466 MB | Fast (~0.5–1.5s) | Good |
+| Medium | `medium` | `ggml-medium.bin` | ~1.5 GB | Moderate (~2–4s) | Better |
+| Large v3 | `large-v3` | `ggml-large-v3.bin` | ~2.9 GB | Slower (~5–10s) | Best |
 
-The `small` model is recommended for real-time voice notes.
+The `small` model is recommended for real-time voice notes. Use `large-v3` for best accuracy when speed is less important.
 
 Download models with:
 ```bash
 cd whisper.cpp
-./models/download-ggml-model.sh small   # or tiny, medium, large
+./models/download-ggml-model.sh small      # good default
+./models/download-ggml-model.sh large-v3   # best accuracy
 ```
+
+---
+
+## Development
+
+```bash
+# Install dependencies
+npm install
+
+# Build for production
+npm run build
+
+# Watch mode (rebuilds on file changes, use with Cmd+R in Obsidian)
+npm run dev
+
+# Run tests
+npm run test
+```
+
+### Project structure
+
+```
+src/
+├── main.ts              — Plugin entry point, recording flow orchestration
+├── types.ts             — Settings interface, insert mode types, defaults
+├── ServerManager.ts     — whisper-server process lifecycle & health checks
+├── RecordingManager.ts  — MediaRecorder, mic access, blob assembly
+├── WhisperClient.ts     — HTTP client for whisper-server (Node http, no CORS)
+├── TranscriptInserter.ts — Editor text insertion (cursor/newline/blockquote)
+├── StatusBarManager.ts  — Status bar state machine (5 states)
+├── SettingsTab.ts       — Obsidian settings UI with file browser
+└── Logger.ts            — Debug-aware console logging
+```
+
+### Architecture
+
+```
+Obsidian (Electron renderer)
+  └── SasayakiPlugin
+        ├── ServerManager      — spawns/stops whisper-server child process
+        ├── RecordingManager   — MediaRecorder, mic access, Blob assembly
+        ├── WhisperClient      — Node http → whisper-server (no CORS)
+        ├── TranscriptInserter — editor cursor/selection manipulation
+        ├── StatusBarManager   — status bar state machine
+        ├── SettingsTab        — Obsidian settings UI
+        └── Logger             — conditional debug logging
+```
+
+Audio never leaves the machine. The whisper-server child process is killed when the plugin is disabled or Obsidian quits. If the server crashes, the plugin auto-restarts it (up to 3 attempts).
+
+---
+
+## License
+
+MIT
