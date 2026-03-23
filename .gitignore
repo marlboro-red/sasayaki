@@ -1,5 +1,9 @@
-
 # Dolt database files (added by bd init)
 .dolt/
 *.db
-plan.md
+
+# Plugin build output
+node_modules/
+main.js
+*.js.map
+.DS_Store
