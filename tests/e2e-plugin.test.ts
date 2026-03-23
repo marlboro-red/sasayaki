@@ -94,13 +94,9 @@ function createMockEditor() {
 }
 
 function mockNavigator(getUserMediaImpl: (...args: any[]) => any) {
-  Object.defineProperty(globalThis, 'navigator', {
-    value: {
-      mediaDevices: { getUserMedia: getUserMediaImpl },
-      clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
-    },
-    writable: true,
-    configurable: true,
+  vi.stubGlobal('navigator', {
+    mediaDevices: { getUserMedia: getUserMediaImpl },
+    clipboard: { writeText: vi.fn().mockResolvedValue(undefined) },
   });
 }
 
@@ -109,11 +105,7 @@ function mockMediaRecorder(recorderObj: any) {
   function FakeMediaRecorder() {
     return recorderObj;
   }
-  Object.defineProperty(globalThis, 'MediaRecorder', {
-    value: FakeMediaRecorder,
-    writable: true,
-    configurable: true,
-  });
+  vi.stubGlobal('MediaRecorder', FakeMediaRecorder);
 }
 
 /** Spin up a tiny HTTP server that responds like whisper-server. Uses port 0 for OS-assigned port. */
@@ -171,6 +163,10 @@ beforeEach(() => {
   mockSpawn.mockReset();
   mockExecFile.mockReset();
   mockExistsSync.mockReset();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -408,11 +404,7 @@ describe('3. Recording via ribbon icon and hotkey', () => {
     mockNavigator(vi.fn().mockResolvedValue(mockStream));
 
     // MediaRecorder constructor that throws
-    Object.defineProperty(globalThis, 'MediaRecorder', {
-      value: function () { throw new Error('mimeType not supported'); },
-      writable: true,
-      configurable: true,
-    });
+    vi.stubGlobal('MediaRecorder', function () { throw new Error('mimeType not supported'); });
 
     await expect(mgr.startRecording()).rejects.toThrow('mimeType not supported');
     expect(mockTrack.stop).toHaveBeenCalled();
@@ -895,6 +887,7 @@ describe('8. Error handling', () => {
 
 describe('9. Plugin disable/enable: server lifecycle', () => {
   it('ServerManager.stop sends SIGTERM and resolves on exit', async () => {
+    vi.useFakeTimers();
     const logger = new Logger(false);
     const mgr = new ServerManager(logger);
 
@@ -911,9 +904,12 @@ describe('9. Plugin disable/enable: server lifecycle', () => {
       }
     });
 
-    await mgr.stop();
+    const stopPromise = mgr.stop();
+    await vi.advanceTimersByTimeAsync(50);
+    await stopPromise;
     expect(mgr.isRunning()).toBe(false);
     expect((mockProc as any).kill).toHaveBeenCalledWith('SIGTERM');
+    vi.useRealTimers();
   });
 
   it('ServerManager.stop is a no-op when no server is running', async () => {
@@ -940,6 +936,7 @@ describe('9. Plugin disable/enable: server lifecycle', () => {
   });
 
   it('onUnexpectedExit does NOT fire during intentional stop', async () => {
+    vi.useFakeTimers();
     const logger = new Logger(false);
     const mgr = new ServerManager(logger);
     const onExit = vi.fn();
@@ -955,9 +952,11 @@ describe('9. Plugin disable/enable: server lifecycle', () => {
       setTimeout(() => mockProc.emit('exit', 0), 10);
     });
 
-    await mgr.stop();
-    await new Promise((r) => setTimeout(r, 50));
+    const stopPromise = mgr.stop();
+    await vi.advanceTimersByTimeAsync(10);
+    await stopPromise;
     expect(onExit).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });
 
@@ -1024,6 +1023,7 @@ describe('10. Unload during active recording cleans up', () => {
   });
 
   it('onunload flow: cancel recording then stop server', async () => {
+    vi.useFakeTimers();
     const logger = new Logger(false);
     const recording = new RecordingManager(logger);
     const server = new ServerManager(logger);
@@ -1047,11 +1047,14 @@ describe('10. Unload during active recording cleans up', () => {
     if (recording.isRecording()) {
       recording.cancelRecording();
     }
-    await server.stop();
+    const stopPromise = server.stop();
+    await vi.advanceTimersByTimeAsync(10);
+    await stopPromise;
 
     expect(recording.isRecording()).toBe(false);
     expect(server.isRunning()).toBe(false);
     expect(mockTrack.stop).toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });
 
