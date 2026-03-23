@@ -22,6 +22,9 @@ export default class SasayakiPlugin extends Plugin {
   private autoRestartAttempts = 0;
   private readonly MAX_RESTART_ATTEMPTS = 3;
   private restartTimeout: ReturnType<typeof setTimeout> | null = null;
+  private _serverRestartTimer: ReturnType<typeof setTimeout> | null = null;
+  private _activeServerHost = '';
+  private _activeServerPort = 0;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -91,10 +94,16 @@ export default class SasayakiPlugin extends Plugin {
       clearTimeout(this.restartTimeout);
       this.restartTimeout = null;
     }
+    if (this._serverRestartTimer) {
+      clearTimeout(this._serverRestartTimer);
+      this._serverRestartTimer = null;
+    }
     if (this.recording.isRecording()) {
       this.recording.cancelRecording();
     }
     await this.server.stop();
+    this._activeServerHost = '';
+    this._activeServerPort = 0;
     this.logger.info('Plugin unloaded');
   }
 
@@ -251,6 +260,8 @@ export default class SasayakiPlugin extends Plugin {
     }
 
     this.statusBar.setState('idle');
+    this._activeServerHost = host;
+    this._activeServerPort = port;
     return true;
   }
 
@@ -286,5 +297,26 @@ export default class SasayakiPlugin extends Plugin {
     await this.saveData(this.settings);
     this._rebuildWhisperClient();
     this.logger?.setDebug(this.settings.debug);
+
+    // If host/port changed while we have a managed server process, restart it
+    // to avoid orphaning the old process on the previous address.
+    const hostChanged = this._activeServerHost && this.settings.host !== this._activeServerHost;
+    const portChanged = this._activeServerPort && this.settings.port !== this._activeServerPort;
+
+    if ((hostChanged || portChanged) && this.server.isManagedProcess) {
+      // Debounce: settings text fields fire onChange per keystroke
+      if (this._serverRestartTimer) {
+        clearTimeout(this._serverRestartTimer);
+      }
+      this._serverRestartTimer = setTimeout(() => {
+        this._serverRestartTimer = null;
+        this.logger.info(
+          `Server address changed (${this._activeServerHost}:${this._activeServerPort} → ${this.settings.host}:${this.settings.port}), restarting…`,
+        );
+        new Notice('Restarting whisper server with new settings…');
+        this.statusBar?.setState('starting');
+        void this.server.stop().then(() => this._startServer());
+      }, 1500);
+    }
   }
 }
