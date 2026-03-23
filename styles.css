@@ -1,0 +1,21 @@
+.sasayaki-recording {
+  animation: sasayaki-pulse 1s ease-in-out infinite;
+  color: var(--text-error);
+}
+
+@keyframes sasayaki-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.status-bar-item.sasayaki-status-ready {
+  color: var(--text-success);
+}
+
+.status-bar-item.sasayaki-status-recording {
+  color: var(--text-error);
+}
+
+.status-bar-item.sasayaki-status-offline {
+  color: var(--text-muted);
+}
