@@ -6,11 +6,35 @@ export class ServerManager {
   private process: ChildProcess | null = null;
   private externallyManaged = false;
   private _stoppedIntentionally = false;
+  private _opLock: Promise<void> = Promise.resolve();
   onUnexpectedExit?: (code: number | null) => void;
 
   constructor(private logger: Logger) {}
 
+  private _serialize<T>(fn: () => Promise<T>): Promise<T> {
+    let release: () => void;
+    const gate = new Promise<void>((r) => { release = r; });
+    const prev = this._opLock;
+    this._opLock = gate;
+    return prev.then(async () => {
+      try {
+        return await fn();
+      } finally {
+        release!();
+      }
+    });
+  }
+
   async start(
+    binaryPath: string,
+    modelPath: string,
+    host: string,
+    port: number
+  ): Promise<void> {
+    return this._serialize(() => this._startImpl(binaryPath, modelPath, host, port));
+  }
+
+  private async _startImpl(
     binaryPath: string,
     modelPath: string,
     host: string,
@@ -70,6 +94,10 @@ export class ServerManager {
   }
 
   async stop(): Promise<void> {
+    return this._serialize(() => this._stopImpl());
+  }
+
+  private async _stopImpl(): Promise<void> {
     if (this.externallyManaged) {
       this.logger.debug('Skipping stop — server is externally managed');
       this.externallyManaged = false;

@@ -260,6 +260,103 @@ describe('2. Whisper server starts and health check passes', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// 2b. ServerManager mutex serializes concurrent start/stop (sasayaki-6xp)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('2b. ServerManager mutex (sasayaki-6xp)', () => {
+  it('concurrent start() calls are serialized — second runs after first completes', async () => {
+    const logger = new Logger(false);
+    const mgr = new ServerManager(logger);
+
+    const order: string[] = [];
+    const emptyPort = FAKE_PORT + 300;
+
+    const mockProc1 = createMockChildProcess();
+    const mockProc2 = createMockChildProcess();
+    mockSpawn
+      .mockReturnValueOnce(mockProc1)
+      .mockReturnValueOnce(mockProc2);
+
+    // waitForReady resolves after a short delay to simulate the 60s polling
+    vi.spyOn(mgr, 'waitForReady').mockImplementation(async () => {
+      order.push('waitForReady-start');
+      await new Promise((r) => setTimeout(r, 50));
+      order.push('waitForReady-end');
+      return true;
+    });
+
+    // Fire two start() calls concurrently
+    const p1 = mgr.start('/bin/ws', '/m.bin', '127.0.0.1', emptyPort).then(() => order.push('start1-done'));
+    const p2 = mgr.start('/bin/ws', '/m.bin', '127.0.0.1', emptyPort).then(() => order.push('start2-done'));
+
+    await Promise.all([p1, p2]);
+
+    // With the mutex, the second waitForReady must start AFTER the first ends
+    const idx = (s: string) => order.indexOf(s);
+    expect(idx('waitForReady-end')).toBeLessThan(idx('start1-done'));
+    // Second start should run after first completes
+    expect(idx('start1-done')).toBeLessThan(idx('start2-done'));
+  });
+
+  it('stop() waits for in-flight start() to finish before executing', async () => {
+    const logger = new Logger(false);
+    const mgr = new ServerManager(logger);
+
+    const order: string[] = [];
+    const emptyPort = FAKE_PORT + 301;
+
+    const mockProc = createMockChildProcess();
+    mockSpawn.mockReturnValue(mockProc);
+
+    // start() will take 100ms due to waitForReady
+    vi.spyOn(mgr, 'waitForReady').mockImplementation(async () => {
+      order.push('waitForReady-start');
+      await new Promise((r) => setTimeout(r, 100));
+      order.push('waitForReady-end');
+      return true;
+    });
+
+    // Make kill emit exit so stop() resolves
+    (mockProc as any).kill.mockImplementation((_signal: string) => {
+      setTimeout(() => mockProc.emit('exit', 0), 10);
+    });
+
+    const startPromise = mgr.start('/bin/ws', '/m.bin', '127.0.0.1', emptyPort)
+      .then(() => order.push('start-done'));
+
+    // Call stop() immediately — without mutex it would null the process mid-start
+    const stopPromise = mgr.stop().then(() => order.push('stop-done'));
+
+    await Promise.all([startPromise, stopPromise]);
+
+    // stop must execute after start completes
+    expect(order.indexOf('start-done')).toBeLessThan(order.indexOf('stop-done'));
+    expect(order.indexOf('waitForReady-end')).toBeLessThan(order.indexOf('stop-done'));
+  });
+
+  it('errors in one serialized call do not block subsequent calls', async () => {
+    const logger = new Logger(false);
+    const mgr = new ServerManager(logger);
+
+    const emptyPort = FAKE_PORT + 302;
+    const mockProc = createMockChildProcess();
+    mockSpawn.mockReturnValue(mockProc);
+
+    // First call: waitForReady fails → start throws
+    vi.spyOn(mgr, 'waitForReady')
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+
+    const p1 = mgr.start('/bin/ws', '/m.bin', '127.0.0.1', emptyPort).catch(() => 'failed');
+    const p2 = mgr.start('/bin/ws', '/m.bin', '127.0.0.1', emptyPort).then(() => 'ok');
+
+    const [r1, r2] = await Promise.all([p1, p2]);
+    expect(r1).toBe('failed');
+    expect(r2).toBe('ok');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // 3. Recording via ribbon icon and hotkey
 // ═══════════════════════════════════════════════════════════════════════════
 
