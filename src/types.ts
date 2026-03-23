@@ -25,7 +25,7 @@ export const DEFAULT_SETTINGS: SasayakiSettings = {
 };
 
 export type PluginState =
-  | 'ready'
+  | 'idle'
   | 'recording'
   | 'transcribing'
   | 'offline'

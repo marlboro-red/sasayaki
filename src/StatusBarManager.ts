@@ -1,6 +1,5 @@
 import { Plugin } from 'obsidian';
-
-export type PluginState = 'idle' | 'recording' | 'transcribing' | 'offline' | 'starting';
+import { PluginState } from './types';
 
 const STATE_LABELS: Record<PluginState, string> = {
 	idle: 'Whisper ready',
