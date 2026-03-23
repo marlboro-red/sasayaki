@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "sasayaki",
+  "project_id": "0d789bef-bd89-4d97-a1a8-1d9bbe3497dc"
+}
