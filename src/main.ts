@@ -1,6 +1,7 @@
 import { Plugin } from 'obsidian';
 import { SasayakiSettings, DEFAULT_SETTINGS } from './types';
 import { StatusBarManager } from './StatusBarManager';
+import { SettingsTab } from './SettingsTab';
 
 export default class SasayakiPlugin extends Plugin {
   settings: SasayakiSettings;
@@ -24,6 +25,8 @@ export default class SasayakiPlugin extends Plugin {
         this.toggleRecording();
       },
     });
+
+    this.addSettingTab(new SettingsTab(this.app, this));
 
     console.log('[Sasayaki] Plugin loaded');
   }
