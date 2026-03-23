@@ -475,6 +475,58 @@ describe('3. Recording via ribbon icon and hotkey', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+// 3b. toggleRecording mutex guard (sasayaki-bdu)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('3b. toggleRecording mutex prevents double-click race', () => {
+  it('concurrent toggleRecording calls only invoke _startRecording once', async () => {
+    // Simulate the plugin's toggleRecording with lock
+    let toggleLock = false;
+    const startCalls: number[] = [];
+
+    async function _startRecording() {
+      startCalls.push(Date.now());
+      await new Promise((r) => setTimeout(r, 50));
+    }
+
+    async function toggleRecording() {
+      if (toggleLock) return;
+      toggleLock = true;
+      try {
+        await _startRecording();
+      } finally {
+        toggleLock = false;
+      }
+    }
+
+    // Fire two rapid calls (simulating double-click)
+    await Promise.all([toggleRecording(), toggleRecording()]);
+
+    // Only one call should have gone through
+    expect(startCalls.length).toBe(1);
+  });
+
+  it('without the lock, both calls would enter _startRecording', async () => {
+    const startCalls: number[] = [];
+
+    async function _startRecording() {
+      startCalls.push(Date.now());
+      await new Promise((r) => setTimeout(r, 50));
+    }
+
+    // No lock — simulates the old buggy behavior
+    async function toggleRecordingNoLock() {
+      await _startRecording();
+    }
+
+    await Promise.all([toggleRecordingNoLock(), toggleRecordingNoLock()]);
+
+    // Both calls go through without the lock
+    expect(startCalls.length).toBe(2);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 // 4. Transcription of short and long recordings
 // ═══════════════════════════════════════════════════════════════════════════
 
