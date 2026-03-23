@@ -295,6 +295,27 @@ describe('3. Recording via ribbon icon and hotkey', () => {
     expect(mockTrack.stop).toHaveBeenCalled();
   });
 
+  it('startRecording cleans up stream if MediaRecorder constructor throws', async () => {
+    const logger = new Logger(false);
+    const mgr = new RecordingManager(logger);
+
+    const mockTrack = { stop: vi.fn() };
+    const mockStream = { getTracks: () => [mockTrack] } as unknown as MediaStream;
+
+    mockNavigator(vi.fn().mockResolvedValue(mockStream));
+
+    // MediaRecorder constructor that throws
+    Object.defineProperty(globalThis, 'MediaRecorder', {
+      value: function () { throw new Error('mimeType not supported'); },
+      writable: true,
+      configurable: true,
+    });
+
+    await expect(mgr.startRecording()).rejects.toThrow('mimeType not supported');
+    expect(mockTrack.stop).toHaveBeenCalled();
+    expect(mgr.isRecording()).toBe(false);
+  });
+
   it('startRecording throws if already recording', async () => {
     const logger = new Logger(false);
     const mgr = new RecordingManager(logger);

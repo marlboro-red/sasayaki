@@ -34,9 +34,14 @@ export class RecordingManager {
 
     this.stream = stream;
     this.chunks = [];
-    this.recorder = new MediaRecorder(stream, {
-      mimeType: 'audio/webm;codecs=opus',
-    });
+    try {
+      this.recorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus',
+      });
+    } catch (err) {
+      this._cleanup();
+      throw err;
+    }
 
     this.recorder.ondataavailable = (e: BlobEvent) => {
       if (e.data.size > 0) {
