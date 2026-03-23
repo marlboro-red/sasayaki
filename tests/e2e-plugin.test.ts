@@ -116,8 +116,8 @@ function mockMediaRecorder(recorderObj: any) {
   });
 }
 
-/** Spin up a tiny HTTP server that responds like whisper-server. */
-function createFakeWhisperServer(port: number): Promise<http.Server> {
+/** Spin up a tiny HTTP server that responds like whisper-server. Uses port 0 for OS-assigned port. */
+function createFakeWhisperServer(): Promise<http.Server> {
   return new Promise((resolve) => {
     const server = http.createServer((req, res) => {
       if (req.url === '/health') {
@@ -140,8 +140,13 @@ function createFakeWhisperServer(port: number): Promise<http.Server> {
         res.end('Not found');
       }
     });
-    server.listen(port, '127.0.0.1', () => resolve(server));
+    server.listen(0, '127.0.0.1', () => resolve(server));
   });
+}
+
+/** Extract the port from a listening server. */
+function serverPort(server: http.Server): number {
+  return (server.address() as import('net').AddressInfo).port;
 }
 
 function closeServer(server: http.Server): Promise<void> {
@@ -151,10 +156,11 @@ function closeServer(server: http.Server): Promise<void> {
 // ── Shared fake whisper server for transcription tests ──────────────────────
 
 let fakeServer: http.Server;
-const FAKE_PORT = 18787;
+let FAKE_PORT: number;
 
 beforeAll(async () => {
-  fakeServer = await createFakeWhisperServer(FAKE_PORT);
+  fakeServer = await createFakeWhisperServer();
+  FAKE_PORT = serverPort(fakeServer);
 });
 
 afterAll(async () => {
@@ -824,10 +830,10 @@ describe('8. Error handling', () => {
         res.writeHead(500, { 'Content-Type': 'text/plain' });
         res.end('Internal Server Error');
       });
-      const port = 18790;
       await new Promise<void>((resolve) =>
-        errorServer.listen(port, '127.0.0.1', () => resolve())
+        errorServer.listen(0, '127.0.0.1', () => resolve())
       );
+      const port = serverPort(errorServer);
 
       try {
         const logger = new Logger(false);
@@ -844,10 +850,10 @@ describe('8. Error handling', () => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end('not json at all');
       });
-      const port = 18791;
       await new Promise<void>((resolve) =>
-        badJsonServer.listen(port, '127.0.0.1', () => resolve())
+        badJsonServer.listen(0, '127.0.0.1', () => resolve())
       );
+      const port = serverPort(badJsonServer);
 
       try {
         const logger = new Logger(false);
