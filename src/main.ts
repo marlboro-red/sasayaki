@@ -25,6 +25,7 @@ export default class SasayakiPlugin extends Plugin {
   private _serverRestartTimer: ReturnType<typeof setTimeout> | null = null;
   private _activeServerHost = '';
   private _activeServerPort = 0;
+  private toggleLock = false;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -110,10 +111,16 @@ export default class SasayakiPlugin extends Plugin {
   // ── Phase 8.3: Main recording flow ─────────────────────────────────────────
 
   async toggleRecording(): Promise<void> {
-    if (this.recording.isRecording()) {
-      await this._stopAndTranscribe();
-    } else {
-      await this._startRecording();
+    if (this.toggleLock) return;
+    this.toggleLock = true;
+    try {
+      if (this.recording.isRecording()) {
+        await this._stopAndTranscribe();
+      } else {
+        await this._startRecording();
+      }
+    } finally {
+      this.toggleLock = false;
     }
   }
 
