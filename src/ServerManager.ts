@@ -65,7 +65,7 @@ export class ServerManager {
       this._stoppedIntentionally = true;
       this.process?.kill('SIGTERM');
       this.process = null;
-      throw new Error('Server did not become ready within 15 seconds');
+      throw new Error('Server did not become ready within 60 seconds');
     }
   }
 
@@ -102,7 +102,7 @@ export class ServerManager {
     return this.process !== null || this.externallyManaged;
   }
 
-  async waitForReady(host: string, port: number, timeoutMs = 15_000): Promise<boolean> {
+  async waitForReady(host: string, port: number, timeoutMs = 60_000): Promise<boolean> {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       const ok = await this._isResponding(host, port);
