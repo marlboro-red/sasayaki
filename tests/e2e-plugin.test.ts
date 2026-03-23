@@ -417,6 +417,36 @@ describe('5. All three insert modes', () => {
     expect(editor.setCursor).toHaveBeenCalledWith({ line: 2, ch: 18 });
   });
 
+  it('newline mode positions cursor correctly for multi-line text', () => {
+    const editor = createMockEditor();
+    editor._setLines(['existing text']);
+    editor.getCursor.mockReturnValue({ line: 0, ch: 5 });
+    editor.getLine.mockReturnValue('existing text');
+
+    inserter.insert(editor as any, 'line1\nline2\nline3', 'newline');
+
+    expect(editor.replaceRange).toHaveBeenCalledWith(
+      '\nline1\nline2\nline3',
+      { line: 0, ch: 13 }
+    );
+    expect(editor.setCursor).toHaveBeenCalledWith({ line: 3, ch: 5 });
+  });
+
+  it('blockquote mode positions cursor correctly for multi-line text', () => {
+    const editor = createMockEditor();
+    editor._setLines(['some note']);
+    editor.getCursor.mockReturnValue({ line: 0, ch: 3 });
+    editor.getLine.mockReturnValue('some note');
+
+    inserter.insert(editor as any, 'line1\nline2', 'blockquote');
+
+    expect(editor.replaceRange).toHaveBeenCalledWith(
+      '\n> [!quote] Transcription\n> line1\nline2',
+      { line: 0, ch: 9 }
+    );
+    expect(editor.setCursor).toHaveBeenCalledWith({ line: 3, ch: 5 });
+  });
+
   it('empty text shows Notice instead of inserting', () => {
     const editor = createMockEditor();
     inserter.insert(editor as any, '', 'cursor');
