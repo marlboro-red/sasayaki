@@ -127,11 +127,16 @@ export class WhisperClient {
     const CRLF = '\r\n';
     const parts: Buffer[] = [];
 
+    // Escape quotes and strip CRLF to prevent header injection
+    const safeFilename = filename
+      .replace(/\r?\n|\r/g, '')
+      .replace(/"/g, '\\"');
+
     // Audio file part
     parts.push(
       Buffer.from(
         `--${boundary}${CRLF}` +
-          `Content-Disposition: form-data; name="file"; filename="${filename}"${CRLF}` +
+          `Content-Disposition: form-data; name="file"; filename="${safeFilename}"${CRLF}` +
           `Content-Type: audio/webm${CRLF}${CRLF}`
       )
     );
