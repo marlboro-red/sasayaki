@@ -10,3 +10,6 @@ node_modules/
 
 # Beads worktree redirect
 .beads/redirect
+
+# Test vault (created by scripts/setup-vault.sh)
+test-vault/
