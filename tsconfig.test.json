@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": null,
+    "noEmit": true,
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "types": ["vitest/globals", "node"],
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
+}
