@@ -23,3 +23,10 @@ export const DEFAULT_SETTINGS: SasayakiSettings = {
   showStatusBar: true,
   debug: false,
 };
+
+export type PluginState =
+  | 'ready'
+  | 'recording'
+  | 'transcribing'
+  | 'offline'
+  | 'starting';
