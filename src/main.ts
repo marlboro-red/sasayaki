@@ -1,4 +1,5 @@
 import { Notice, Plugin } from 'obsidian';
+import { execFile } from 'child_process';
 import { DEFAULT_SETTINGS, SasayakiSettings } from './types';
 import { Logger } from './Logger';
 import { RecordingManager } from './RecordingManager';
@@ -18,6 +19,8 @@ export default class SasayakiPlugin extends Plugin {
   private whisperClient!: WhisperClient;
   private inserter!: TranscriptInserter;
   private ribbonIcon: HTMLElement | null = null;
+  private autoRestartAttempts = 0;
+  private readonly MAX_RESTART_ATTEMPTS = 3;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -27,6 +30,24 @@ export default class SasayakiPlugin extends Plugin {
     this.server = new ServerManager(this.logger);
     this.inserter = new TranscriptInserter();
     this._rebuildWhisperClient();
+
+    // ── Phase 9: Server crash auto-restart ─────────────────────────────────
+    this.server.onUnexpectedExit = (code) => {
+      this.statusBar?.setState('offline');
+      if (this.settings.autoStartServer && this.autoRestartAttempts < this.MAX_RESTART_ATTEMPTS) {
+        this.autoRestartAttempts++;
+        this.logger.info(`Auto-restarting server (attempt ${this.autoRestartAttempts}/${this.MAX_RESTART_ATTEMPTS})...`);
+        new Notice('Whisper server crashed — attempting auto-restart...', 4000);
+        setTimeout(() => void this._startServer(), 2000);
+      } else if (this.autoRestartAttempts >= this.MAX_RESTART_ATTEMPTS) {
+        new Notice(
+          `Whisper server crashed and could not be restarted after ${this.MAX_RESTART_ATTEMPTS} attempts.`,
+          8000,
+        );
+      } else {
+        this.logger.error(`Server exited with code ${code}`);
+      }
+    };
 
     // ── Phase 8.2: Status bar state machine ────────────────────────────────
     this.statusBar = new StatusBarManager(this, this.settings.showStatusBar);
@@ -196,6 +217,21 @@ export default class SasayakiPlugin extends Plugin {
       return false;
     }
 
+    // Phase 9: Check ffmpeg availability (required for WebM → WAV via --convert)
+    const ffmpegOk = await this._checkFfmpeg();
+    if (!ffmpegOk) {
+      new Notice(
+        'ffmpeg not found — install with: brew install ffmpeg\nRequired for audio transcoding.',
+        10000,
+      );
+      this.logger.error('ffmpeg not found on PATH');
+      this.statusBar.setState('offline');
+      return false;
+    }
+
+    // Reset auto-restart counter on a successful voluntary start
+    this.autoRestartAttempts = 0;
+
     try {
       // start() handles: probe health, spawn, waitForReady, and shows notices
       await this.server.start(serverBinaryPath, modelPath, host, port);
@@ -217,7 +253,17 @@ export default class SasayakiPlugin extends Plugin {
       this.settings.host,
       this.settings.port,
       this.settings.language,
+      this.logger,
     );
+  }
+
+  /** Checks ffmpeg is on PATH — required for whisper-server's --convert flag. */
+  private _checkFfmpeg(): Promise<boolean> {
+    return new Promise((resolve) => {
+      execFile('ffmpeg', ['-version'], { timeout: 5000 }, (err) => {
+        resolve(!err);
+      });
+    });
   }
 
   // ── Settings ────────────────────────────────────────────────────────────────
