@@ -1,3 +1,13 @@
+/* =========================================================
+   Sasayaki — Recording animation & status bar colours
+   Compatible with both Obsidian light and dark themes via
+   CSS custom properties from the Obsidian theme system.
+   ========================================================= */
+
+/* ---------------------------------------------------------
+   Ribbon icon — pulsing red while recording
+   Applied by main.ts: ribbonEl.addClass('sasayaki-recording')
+   --------------------------------------------------------- */
 .sasayaki-recording {
   animation: sasayaki-pulse 1s ease-in-out infinite;
   color: var(--text-error);
@@ -8,6 +18,12 @@
   50% { opacity: 0.4; }
 }
 
+/* ---------------------------------------------------------
+   Status bar item colours
+   Three core states: ready (green), recording (red), offline (grey)
+   Plus: transcribing (accent), starting (yellow)
+   --------------------------------------------------------- */
+
 .status-bar-item.sasayaki-status-ready {
   color: var(--text-success);
 }
@@ -16,6 +32,14 @@
   color: var(--text-error);
 }
 
+.status-bar-item.sasayaki-status-transcribing {
+  color: var(--text-accent);
+}
+
 .status-bar-item.sasayaki-status-offline {
   color: var(--text-muted);
+}
+
+.status-bar-item.sasayaki-status-starting {
+  color: var(--text-warning);
 }

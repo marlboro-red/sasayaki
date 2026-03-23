@@ -52,6 +52,12 @@ export class ServerManager {
 			this.logger.debug(`[whisper-server stderr] ${chunk.toString().trim()}`);
 		});
 
+		this.process.on('error', (err) => {
+			this.logger.error('Failed to spawn whisper-server', err);
+			new Notice(`whisper-server not found at: ${binaryPath}`);
+			this.process = null;
+		});
+
 		this.process.on('exit', (code, signal) => {
 			if (this.process !== null) {
 				// Unexpected exit (not triggered by stop())
